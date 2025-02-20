@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloom's Taxonomy Checker</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        .container {
+            background-color: #fff;
+            width: 90%;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #4b4f58;
+            font-size: 26px;
+            margin-bottom: 20px;
+        }
+
+        .input-container {
+            width: 80%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        button {
+            background-color: #0056b3;
+            color: #fff;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #004499;
+        }
+
+        .table-container {
+            margin-top: 30px;
+            width: 90%;
+            max-width: 600px;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #0056b3;
+            color: #fff;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .actions i {
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        canvas {
+            max-width: 600px;
+            margin: 30px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Bloom's Taxonomy Checker</h2>
+
+        <div class="input-container">
+            <textarea id="question" placeholder="Enter your question here..."></textarea>
+            <br>
+            <button onclick="checkBloomLevel()" id="addButton">Check</button>
+            <button onclick="generateChart()">Finish</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>Serial No.</th>
+                    <th>Question</th>
+                    <th>Level Number</th>
+                    <th>Level(s)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <canvas id="pieChart"></canvas>
+
+    <script>
+        const bloomLevels = {
+            "Knowledge": { number: 1, keywords: ["define", "identify", "list", "recall", "describe"] },
+            "Comprehension": { number: 2, keywords: ["summarize", "interpret", "classify", "compare", "explain"] },
+            "Application": { number: 3, keywords: ["solve", "use", "apply", "demonstrate", "illustrate"] },
+            "Analysis": { number: 4, keywords: ["analyze", "examine", "categorize", "distinguish", "inspect"] },
+            "Evaluation": { number: 5, keywords: ["assess", "judge", "defend", "critique", "justify"] },
+            "Creation": { number: 6, keywords: ["design", "develop", "construct", "compose", "generate"] }
+        };
+
+        let questionData = [];
+        let editIndex = -1;
+
+        function checkBloomLevel() {
+            let question = document.getElementById("question").value.trim();
+            if (!question) return alert("Please enter a question!");
+
+            let lowerCaseQuestion = question.toLowerCase();
+            let levels = Object.keys(bloomLevels).filter(level =>
+                bloomLevels[level].keywords.some(keyword => lowerCaseQuestion.includes(keyword))
+            );
+
+            if (levels.length === 0) return alert("No Bloom's level detected. Please rephrase.");
+
+            let levelNumbers = levels.map(level => bloomLevels[level].number);
+
+            if (editIndex === -1) {
+                questionData.push({ question, levelNumbers, levels });
+            } else {
+                questionData[editIndex] = { question, levelNumbers, levels };
+                editIndex = -1;
+                document.getElementById("addButton").textContent = "Check";
+            }
+
+            updateTable();
+            document.getElementById("question").value = "";
+        }
+
+        function updateTable() {
+            let tbody = document.querySelector("#resultTable tbody");
+            tbody.innerHTML = "";
+            questionData.forEach((item, index) => {
+                let row = tbody.insertRow();
+                row.insertCell(0).textContent = index + 1;
+                row.insertCell(1).textContent = item.question;
+                row.insertCell(2).textContent = item.levelNumbers.join(", ");
+                row.insertCell(3).textContent = item.levels.join(", ");
+                let actionsCell = row.insertCell(4);
+                actionsCell.innerHTML = `<div class="actions">
+                    <i class="fas fa-edit" onclick="editRow(${index})"></i>
+                    <i class="fas fa-trash delete" onclick="deleteRow(${index})"></i>
+                </div>`;
+            });
+        }
+
+        function editRow(index) {
+            document.getElementById("question").value = questionData[index].question;
+            editIndex = index;
+            document.getElementById("addButton").textContent = "Update";
+        }
+
+        function deleteRow(index) {
+            questionData.splice(index, 1);
+            updateTable();
+        }
+
+        function generateChart() {
+            if (!questionData.length) return alert("No data to generate chart.");
+
+            let levelCounts = {};
+            Object.keys(bloomLevels).forEach(level => levelCounts[level] = 0);
+
+            questionData.forEach(item => {
+                item.levels.forEach(level => levelCounts[level]++);
+            });
+
+            let labels = Object.keys(levelCounts).filter(level => levelCounts[level] > 0);
+            let data = labels.map(level => levelCounts[level]);
+
+            if (window.pieChartInstance) window.pieChartInstance.destroy();
+
+            let ctx = document.getElementById('pieChart').getContext('2d');
+            window.pieChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let total = data.reduce((a, b) => a + b, 0);
+                                    let percentage = ((context.raw / total) * 100).toFixed(2);
+                                    return `${context.label}: ${percentage}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
